@@ -1,14 +1,37 @@
 package main
 
 import (
-	"time"
+	"fmt"
+	"log"
+	"sync"
 
 	"github.com/semihkanyilmaz/worp/internal/job"
 )
 
+func init() {
+	mu := sync.Mutex{}
+
+	job.InitJob(&mu)
+}
+
 func main() {
 
-	job.NewJob("test", 1, 5, func() {}).Create()
+	j, err := job.NewJob("test", 1, 1, printMessage)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	time.Sleep(60 * time.Second * 24 * 292)
+	err = j.Start()
+	if err != nil {
+		log.Println(err)
+	}
+
+	j.Start()
+
+	select {}
+}
+
+func printMessage() {
+
+	fmt.Println("Hello worp")
 }
