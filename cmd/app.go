@@ -10,7 +10,7 @@ import (
 	"github.com/semihkanyilmaz/worp/internal/worp"
 )
 
-func Execute() {
+func Start() {
 
 	w := worp.New()
 
