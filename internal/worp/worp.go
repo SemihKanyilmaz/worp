@@ -35,7 +35,7 @@ type job struct {
 	durat     time.Duration
 	CreatedAt time.Time
 	IsActive  bool
-	Work      func()
+	work      func()
 }
 
 func (w *worp) NewJob(name string, durat time.Duration, work func()) (*job, error) {
@@ -47,7 +47,7 @@ func (w *worp) NewJob(name string, durat time.Duration, work func()) (*job, erro
 	j := &job{
 		Name:      name,
 		ticker:    time.NewTicker(durat),
-		Work:      work,
+		work:      work,
 		CreatedAt: time.Now(),
 		durat:     durat,
 	}
@@ -91,7 +91,7 @@ func (w *worp) Start(name string) error {
 				runAt := now.Add(j.durat)
 				j.NextRunAt = &runAt
 
-				j.Work()
+				j.work()
 			}
 		}
 	}()

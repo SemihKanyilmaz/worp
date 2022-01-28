@@ -17,10 +17,10 @@ func Start() {
 	w.NewJob("hello-world", 10*time.Second, func() {
 		fmt.Println("Hello worp!")
 	})
+	port := ":1923"
+	server := &http.Server{Addr: "127.0.0.1" + port, Handler: router.InitRoutes(w)}
 
-	server := &http.Server{Addr: ":1923", Handler: router.InitRoutes(w)}
-
-	log.Println("Http server started")
+	log.Printf("Http server started on %s", port)
 
 	log.Fatal(server.ListenAndServe())
 }

@@ -36,8 +36,14 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) PauseJob(w http.ResponseWriter, r *http.Request) {
+
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
 	c := httpContext.NewContext(w, r)
-	name := c.GetQueryParam("name")
+	name := strings.TrimPrefix(r.URL.Path, "/pause/")
 	if strings.TrimSpace(name) == "" {
 		c.Json(http.StatusBadRequest, "name cannot be empty")
 		return

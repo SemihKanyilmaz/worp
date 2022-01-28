@@ -12,6 +12,6 @@ func InitRoutes(worp worp.Worp) *http.ServeMux {
 	mux := http.NewServeMux()
 	handler := handler.NewHandler(worp)
 	mux.Handle("/", handler)
-	mux.HandleFunc("/pause", handler.PauseJob)
+	mux.HandleFunc("/pause/", handler.PauseJob)
 	return mux
 }
