@@ -14,7 +14,7 @@ func Start() {
 
 	w := worp.New()
 
-	w.NewJob("hello-world", 10*time.Second, func() {
+	w.NewJob("hello-world", 5*time.Second, func() {
 		fmt.Println("Hello worp!")
 	})
 	port := ":1923"

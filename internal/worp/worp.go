@@ -41,7 +41,7 @@ type job struct {
 func (w *worp) NewJob(name string, durat time.Duration, work func()) (*job, error) {
 
 	if j, _ := w.getJob(name); j != nil {
-		return nil, fmt.Errorf("%s has been already exists!", name)
+		return nil, fmt.Errorf("%s has been already exists", name)
 	}
 
 	j := &job{
