@@ -8,48 +8,49 @@ import (
 )
 
 type Worp interface {
-	NewJob(name string, durat time.Duration, work func()) (*job, error)
+	NewJob(name string, durat time.Duration, work func()) (*Job, error)
 	DeleteJob(name string) error
 	Start(name string) error
 	PauseJob(name string) error
-	GetActiveJobs() []job
+	GetActiveJobs() []Job
+	UpdateDuration(name, durat string) error
 }
 
 type worp struct {
-	jobs map[string]*job
+	jobs map[string]*Job
 	mu   *sync.Mutex
 }
 
 func New() *worp {
 	return &worp{
 		mu:   &sync.Mutex{},
-		jobs: make(map[string]*job),
+		jobs: make(map[string]*Job),
 	}
 }
 
-type job struct {
+type Job struct {
 	Name      string
 	ticker    *time.Ticker
 	LastRunAt *time.Time
 	NextRunAt *time.Time
-	durat     time.Duration
+	Durat     time.Duration
 	CreatedAt time.Time
 	IsActive  bool
 	work      func()
 }
 
-func (w *worp) NewJob(name string, durat time.Duration, work func()) (*job, error) {
+func (w *worp) NewJob(name string, durat time.Duration, work func()) (*Job, error) {
 
 	if j, _ := w.getJob(name); j != nil {
 		return nil, fmt.Errorf("%s has been already exists", name)
 	}
 
-	j := &job{
+	j := &Job{
 		Name:      name,
 		ticker:    time.NewTicker(durat),
 		work:      work,
 		CreatedAt: time.Now(),
-		durat:     durat,
+		Durat:     durat,
 	}
 
 	w.mu.Lock()
@@ -67,13 +68,13 @@ func (w *worp) Start(name string) error {
 	}
 
 	if !j.IsActive {
-		j.ticker.Reset(j.durat)
+		j.ticker.Reset(j.Durat)
 		j.IsActive = true
 	}
 
 	t := time.Now()
 	j.LastRunAt = &t
-	nexRunAt := t.Add(j.durat)
+	nexRunAt := t.Add(j.Durat)
 	j.NextRunAt = &nexRunAt
 
 	log.Printf("%s is working \n", j.Name)
@@ -84,11 +85,11 @@ func (w *worp) Start(name string) error {
 			case <-j.ticker.C:
 
 				j.ticker.Stop()
-				j.ticker.Reset(j.durat)
+				j.ticker.Reset(j.Durat)
 
 				now := time.Now()
 				j.LastRunAt = &now
-				runAt := now.Add(j.durat)
+				runAt := now.Add(j.Durat)
 				j.NextRunAt = &runAt
 
 				j.work()
@@ -134,9 +135,9 @@ func (w *worp) PauseJob(name string) error {
 	return nil
 }
 
-func (w *worp) GetActiveJobs() []job {
+func (w *worp) GetActiveJobs() []Job {
 
-	items := make([]job, 0)
+	items := make([]Job, 0)
 
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -148,7 +149,32 @@ func (w *worp) GetActiveJobs() []job {
 	return items
 }
 
-func (w *worp) getJob(name string) (*job, error) {
+func (w *worp) UpdateDuration(name, durat string) error {
+
+	j, err := w.getJob(name)
+	if err != nil {
+		return err
+	}
+
+	d, err := time.ParseDuration(durat)
+	if err != nil {
+		return err
+	}
+	j.Durat = d
+	if j.IsActive {
+		j.ticker.Stop()
+		j.ticker.Reset(j.Durat)
+
+		now := time.Now()
+		j.LastRunAt = &now
+		runAt := now.Add(j.Durat)
+		j.NextRunAt = &runAt
+	}
+
+	return nil
+}
+
+func (w *worp) getJob(name string) (*Job, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	j, exist := w.jobs[name]
