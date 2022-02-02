@@ -1,6 +1,7 @@
 package worp
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"sync"
@@ -14,6 +15,7 @@ type Worp interface {
 	PauseJob(name string) error
 	GetActiveJobs() []Job
 	UpdateDuration(name, durat string) error
+	UpdateNextRunAt(name string, nextRunAt time.Time) error
 }
 
 type worp struct {
@@ -170,6 +172,28 @@ func (w *worp) UpdateDuration(name, durat string) error {
 		runAt := now.Add(j.Durat)
 		j.NextRunAt = &runAt
 	}
+
+	return nil
+}
+
+func (w *worp) UpdateNextRunAt(name string, nextRunAt time.Time) error {
+
+	if nextRunAt.Before(time.Now().Add(3 * time.Hour)) {
+		return errors.New("nextRunAt must be greater than now")
+	}
+
+	j, err := w.getJob(name)
+	if err != nil {
+		return err
+	}
+
+	oldDurat := j.Durat
+
+	j.ticker.Stop()
+	j.ticker.Reset(nextRunAt.Sub(time.Now().Add(3 * time.Hour)))
+	j.ticker = time.NewTicker(oldDurat)
+
+	j.NextRunAt = &nextRunAt
 
 	return nil
 }

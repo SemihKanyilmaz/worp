@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/semihkanyilmaz/worp/internal/handler/model"
 	"github.com/semihkanyilmaz/worp/internal/worp"
@@ -30,7 +31,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case http.MethodDelete:
 		h.deleteJob(c)
 	case http.MethodPut:
-		h.updateDurationOfJob(c)
+		h.updateTimeJob(c)
 	default:
 		c.Json(http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed))
 	}
@@ -81,9 +82,9 @@ func (h *handler) getActiveJobs(c httpContext.Context) {
 
 }
 
-func (h *handler) updateDurationOfJob(c httpContext.Context) {
+func (h *handler) updateTimeJob(c httpContext.Context) {
 
-	req := new(model.UpdateDurationJobRequest)
+	req := new(model.UpdateTimeRequest)
 	if err := c.Bind(req); err != nil {
 		c.Json(http.StatusBadRequest, err.Error())
 		return
@@ -93,9 +94,25 @@ func (h *handler) updateDurationOfJob(c httpContext.Context) {
 		return
 	}
 
-	if err := h.worp.UpdateDuration(req.Name, req.Duration); err != nil {
-		c.Json(http.StatusBadRequest, err.Error())
-		return
+	if req.Duration != nil {
+		if err := h.worp.UpdateDuration(req.Name, *req.Duration); err != nil {
+			c.Json(http.StatusBadRequest, err.Error())
+			return
+		}
+	}
+
+	if req.NextRunAt != nil {
+
+		next, err := time.Parse(time.RFC3339, *req.NextRunAt)
+		if err != nil {
+			c.Json(http.StatusBadRequest, err.Error())
+			return
+		}
+
+		if err := h.worp.UpdateNextRunAt(req.Name, next); err != nil {
+			c.Json(http.StatusNotFound, err.Error())
+			return
+		}
 	}
 
 	c.NoContent(http.StatusNoContent)

@@ -7,9 +7,10 @@ type GetActiveJobsResponse struct {
 	TotalCount int   `json:"totalCount"`
 }
 
-type UpdateDurationJobRequest struct {
-	Name     string `json:"name"`
-	Duration string `json:"duration"`
+type UpdateTimeRequest struct {
+	Name      string  `json:"name"`
+	Duration  *string `json:"duration"`
+	NextRunAt *string `json:"nextRunAt"`
 }
 
 type Job struct {
