@@ -83,18 +83,20 @@ func (w *worp) Start(name string) error {
 	log.Printf("%s is working \n", j.Name)
 
 	go func() {
-		select {
-		case <-j.ticker.C:
-			w.mu.Lock()
-			j.ticker.Stop()
-			j.ticker.Reset(j.Durat)
+		for {
+			select {
+			case <-j.ticker.C:
+				w.mu.Lock()
+				j.ticker.Stop()
+				j.ticker.Reset(j.Durat)
 
-			now := time.Now()
-			j.LastRunAt = &now
-			runAt := now.Add(j.Durat)
-			j.NextRunAt = &runAt
-			w.mu.Unlock()
-			j.task()
+				now := time.Now()
+				j.LastRunAt = &now
+				runAt := now.Add(j.Durat)
+				j.NextRunAt = &runAt
+				w.mu.Unlock()
+				j.task()
+			}
 		}
 	}()
 
