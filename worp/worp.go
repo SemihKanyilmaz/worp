@@ -14,18 +14,18 @@ type Worp interface {
 	Start(name string) error
 	PauseJob(name string) error
 	GetActiveJobs() []Job
-	UpdateDuration(name, durat string) error
+	UpdateDuration(name string, durat time.Duration) error
 	UpdateNextRunAt(name string, nextRunAt time.Time) error
 }
 
 type worp struct {
 	jobs map[string]*Job
-	mu   *sync.Mutex
+	mu   *sync.RWMutex
 }
 
 func New() *worp {
 	return &worp{
-		mu:   &sync.Mutex{},
+		mu:   &sync.RWMutex{},
 		jobs: make(map[string]*Job),
 	}
 }
@@ -75,27 +75,26 @@ func (w *worp) Start(name string) error {
 	}
 
 	t := time.Now()
+	w.mu.Lock()
 	j.LastRunAt = &t
 	nexRunAt := t.Add(j.Durat)
 	j.NextRunAt = &nexRunAt
-
+	w.mu.Unlock()
 	log.Printf("%s is working \n", j.Name)
 
 	go func() {
-		for {
-			select {
-			case <-j.ticker.C:
+		select {
+		case <-j.ticker.C:
+			w.mu.Lock()
+			j.ticker.Stop()
+			j.ticker.Reset(j.Durat)
 
-				j.ticker.Stop()
-				j.ticker.Reset(j.Durat)
-
-				now := time.Now()
-				j.LastRunAt = &now
-				runAt := now.Add(j.Durat)
-				j.NextRunAt = &runAt
-
-				j.task()
-			}
+			now := time.Now()
+			j.LastRunAt = &now
+			runAt := now.Add(j.Durat)
+			j.NextRunAt = &runAt
+			w.mu.Unlock()
+			j.task()
 		}
 	}()
 
@@ -113,10 +112,6 @@ func (w *worp) DeleteJob(name string) error {
 	delete(w.jobs, j.Name)
 	w.mu.Unlock()
 
-	j.IsActive = false
-
-	j.ticker.Stop()
-
 	log.Printf("%s was successfully deleted", j.Name)
 	return nil
 }
@@ -127,11 +122,11 @@ func (w *worp) PauseJob(name string) error {
 	if err != nil {
 		return err
 	}
-
+	w.mu.Lock()
 	j.IsActive = false
 
 	j.ticker.Stop()
-
+	w.mu.Unlock()
 	log.Printf("%s was successfully paused", j.Name)
 
 	return nil
@@ -151,18 +146,16 @@ func (w *worp) GetActiveJobs() []Job {
 	return items
 }
 
-func (w *worp) UpdateDuration(name, durat string) error {
+func (w *worp) UpdateDuration(name string, durat time.Duration) error {
 
 	j, err := w.getJob(name)
 	if err != nil {
 		return err
 	}
 
-	d, err := time.ParseDuration(durat)
-	if err != nil {
-		return err
-	}
-	j.Durat = d
+	w.mu.Lock()
+	j.Durat = durat
+
 	if j.IsActive {
 		j.ticker.Stop()
 		j.ticker.Reset(j.Durat)
@@ -172,7 +165,7 @@ func (w *worp) UpdateDuration(name, durat string) error {
 		runAt := now.Add(j.Durat)
 		j.NextRunAt = &runAt
 	}
-
+	w.mu.Unlock()
 	return nil
 }
 
@@ -189,12 +182,13 @@ func (w *worp) UpdateNextRunAt(name string, nextRunAt time.Time) error {
 
 	oldDurat := j.Durat
 
+	w.mu.Lock()
 	j.ticker.Stop()
 	j.ticker.Reset(nextRunAt.Sub(time.Now().Add(3 * time.Hour)))
 	j.ticker = time.NewTicker(oldDurat)
 
 	j.NextRunAt = &nextRunAt
-
+	w.mu.Unlock()
 	return nil
 }
 
